@@ -32,12 +32,19 @@ class UpdateAliasJob implements JobInterface
     protected $indexPostfix;
 
     /**
-     * @param string $indexPostfix
+     * @var array|null
      */
-    public function __construct($indexPostfix)
+    private $dimensions;
+
+    /**
+     * @param string $indexPostfix
+     * @param array|null $dimensions
+     */
+    public function __construct($indexPostfix, array $dimensions = [])
     {
         $this->identifier = Algorithms::generateRandomString(24);
         $this->indexPostfix = $indexPostfix;
+        $this->dimensions = $dimensions;
     }
 
     /**
@@ -54,6 +61,7 @@ class UpdateAliasJob implements JobInterface
     public function execute(QueueInterface $queue, Message $message)
     {
         $this->nodeIndexer->setIndexNamePostfix($this->indexPostfix);
+        $this->nodeIndexer->setDimensions($this->dimensions);
         $this->nodeIndexer->updateIndexAlias();
         $this->log(sprintf('action=indexing step=index-switched alias=%s', $this->indexPostfix), LOG_NOTICE);
 

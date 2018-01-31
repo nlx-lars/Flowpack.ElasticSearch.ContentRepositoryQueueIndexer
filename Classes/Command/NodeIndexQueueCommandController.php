@@ -117,8 +117,12 @@ class NodeIndexQueueCommandController extends CommandController
             $this->outputLine();
             $this->indexWorkspace($workspace, $indexPostfix);
         }
-        $updateAliasJob = new UpdateAliasJob($indexPostfix);
-        $this->jobManager->queue(self::BATCH_QUEUE_NAME, $updateAliasJob);
+
+        $combinations = new ArrayCollection($this->contentDimensionCombinator->getAllAllowedCombinations());
+        $combinations->map(function (array $dimensions) use ($indexPostfix) {
+            $updateAliasJob = new UpdateAliasJob($indexPostfix, $dimensions);
+            $this->jobManager->queue(self::BATCH_QUEUE_NAME, $updateAliasJob);
+        });
 
         $this->outputLine("Indexing jobs created for queue %s with success ...", [self::BATCH_QUEUE_NAME]);
         $this->outputSystemReport();
