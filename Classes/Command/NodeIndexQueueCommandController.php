@@ -1,6 +1,7 @@
 <?php
 namespace Flowpack\ElasticSearch\ContentRepositoryQueueIndexer\Command;
 
+use Doctrine\Common\Collections\ArrayCollection;
 use Flowpack\ElasticSearch\ContentRepositoryAdaptor\Indexer\NodeIndexer;
 use Flowpack\ElasticSearch\ContentRepositoryAdaptor\Mapping\NodeTypeMappingBuilder;
 use Flowpack\ElasticSearch\ContentRepositoryQueueIndexer\Domain\Repository\NodeDataRepository;
@@ -73,6 +74,12 @@ class NodeIndexQueueCommandController extends CommandController
     protected $nodeIndexer;
 
     /**
+     * @Flow\Inject
+     * @var \Neos\ContentRepository\Domain\Service\ContentDimensionCombinator
+     */
+    protected $contentDimensionCombinator;
+
+    /**
      * @Flow\InjectConfiguration(path="batchSize")
      * @var int
      */
@@ -89,11 +96,10 @@ class NodeIndexQueueCommandController extends CommandController
     public function buildCommand($workspace = null)
     {
         $indexPostfix = time();
-        $indexName = $this->createNextIndex($indexPostfix);
         $this->updateMapping();
 
         $this->outputLine();
-        $this->outputLine('<b>Indexing on %s ...</b>', [$indexName]);
+        $this->outputLine('<b>Indexing on %s ...</b>', [$indexPostfix]);
 
         $pendingJobs = $this->queueManager->getQueue(self::BATCH_QUEUE_NAME)->count();
         if ($pendingJobs !== 0) {
@@ -262,20 +268,6 @@ class NodeIndexQueueCommandController extends CommandController
     }
 
     /**
-     * @param string $indexPostfix
-     * @return string
-     * @throws \Flowpack\ElasticSearch\ContentRepositoryAdaptor\Exception
-     */
-    protected function createNextIndex($indexPostfix)
-    {
-        $this->nodeIndexer->setIndexNamePostfix($indexPostfix);
-        $this->nodeIndexer->getIndex()->create();
-        $this->log(sprintf('action=indexing step=index-created index=%s', $this->nodeIndexer->getIndexName()), LOG_INFO);
-
-        return $this->nodeIndexer->getIndexName();
-    }
-
-    /**
      * Update Index Mapping
      *
      * @return void
@@ -283,11 +275,18 @@ class NodeIndexQueueCommandController extends CommandController
      */
     protected function updateMapping()
     {
-        $nodeTypeMappingCollection = $this->nodeTypeMappingBuilder->buildMappingInformation($this->nodeIndexer->getIndex());
-        foreach ($nodeTypeMappingCollection as $mapping) {
-            /** @var Mapping $mapping */
-            $mapping->apply();
-        }
-        $this->log(sprintf('action=indexing step=mapping-updated index=%s', $this->nodeIndexer->getIndexName()), LOG_INFO);
+        $combinations = new ArrayCollection($this->contentDimensionCombinator->getAllAllowedCombinations());
+        $combinations->map(function (array $dimensions) {
+            $this->nodeIndexer->setDimensions($dimensions);
+            if (!$this->nodeIndexer->getIndex()->exists()) {
+                $this->nodeIndexer->getIndex()->create();
+            }
+            $nodeTypeMappingCollection = $this->nodeTypeMappingBuilder->buildMappingInformation($this->nodeIndexer->getIndex());
+            foreach ($nodeTypeMappingCollection as $mapping) {
+                /** @var Mapping $mapping */
+                $mapping->apply();
+            }
+            $this->log(sprintf('action=indexing step=mapping-updated index=%s', $this->nodeIndexer->getIndexName()), LOG_INFO);
+        });
     }
 }
