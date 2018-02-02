@@ -96,7 +96,8 @@ class NodeIndexQueueCommandController extends CommandController
     public function buildCommand($workspace = null)
     {
         $indexPostfix = time();
-        $this->updateMapping();
+
+        $this->updateMapping($indexPostfix);
 
         $this->outputLine();
         $this->outputLine('<b>Indexing on %s ...</b>', [$indexPostfix]);
@@ -277,10 +278,11 @@ class NodeIndexQueueCommandController extends CommandController
      * @return void
      * @throws \Flowpack\ElasticSearch\ContentRepositoryAdaptor\Exception
      */
-    protected function updateMapping()
+    protected function updateMapping($indexPostfix)
     {
         $combinations = new ArrayCollection($this->contentDimensionCombinator->getAllAllowedCombinations());
-        $combinations->map(function (array $dimensions) {
+        $combinations->map(function (array $dimensions) use ($indexPostfix) {
+            $this->nodeIndexer->setIndexNamePostfix($indexPostfix);
             $this->nodeIndexer->setDimensions($dimensions);
             if (!$this->nodeIndexer->getIndex()->exists()) {
                 $this->nodeIndexer->getIndex()->create();
