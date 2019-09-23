@@ -5,7 +5,7 @@
   "license": "MIT",
   "require": {
     "flowpack/jobqueue-common": "^2.0.0",
-    "flowpack/elasticsearch-contentrepositoryadaptor": "^4.0.0"
+    "flowpack/elasticsearch-contentrepositoryadaptor": "^4.0.0 || dev-master"
   },
   "autoload": {
     "psr-4": {
